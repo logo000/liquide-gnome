@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Liquid Glass Refraction Playground</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{overflow:hidden;background:#000;font-family:system-ui,-apple-system,sans-serif;color:#e0e0e0}
+#c{display:block;position:fixed;top:0;left:0;width:100%;height:100%}
+#ctrl{position:fixed;top:16px;right:16px;width:272px;background:rgba(30,30,30,0.92);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-radius:14px;
+  border:1px solid rgba(255,255,255,0.07);z-index:10;box-shadow:0 8px 32px rgba(0,0,0,0.5);
+  font-size:12px;user-select:none;transition:opacity .2s}
+.ph{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;
+  cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.05)}
+.ph h3{font-size:13px;font-weight:600;color:#fff;letter-spacing:.3px}
+.ph button{background:none;border:none;color:#888;font-size:16px;cursor:pointer;width:24px;height:24px;
+  display:flex;align-items:center;justify-content:center;border-radius:6px;transition:background .15s}
+.ph button:hover{background:rgba(255,255,255,0.1);color:#fff}
+#pb{padding:10px 14px 14px;max-height:80vh;overflow-y:auto;transition:max-height .3s,padding .25s,opacity .2s}
+#pb.collapsed{max-height:0;padding-top:0;padding-bottom:0;opacity:0;overflow:hidden}
+#pb::-webkit-scrollbar{width:4px}
+#pb::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.12);border-radius:2px}
+.presets{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px}
+.preset-btn{padding:4px 9px;border-radius:16px;border:1px solid rgba(255,255,255,0.08);
+  background:rgba(255,255,255,0.04);color:#aaa;font-size:11px;cursor:pointer;transition:all .15s;white-space:nowrap}
+.preset-btn:hover{background:rgba(255,255,255,0.1);color:#fff}
+.preset-btn.active{background:rgba(53,132,228,0.25);border-color:rgba(53,132,228,0.45);color:#fff}
+.cr{margin-bottom:9px}
+.cr label{display:flex;justify-content:space-between;margin-bottom:3px;font-size:11px;color:#999}
+.cr label span{color:#ccc;font-variant-numeric:tabular-nums;min-width:36px;text-align:right}
+input[type=range]{width:100%;height:3px;-webkit-appearance:none;appearance:none;
+  background:rgba(255,255,255,0.1);border-radius:2px;outline:none;margin:2px 0}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;
+  border-radius:50%;background:#3584e4;cursor:pointer;border:2px solid rgba(255,255,255,0.15)}
+input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;
+  background:#3584e4;cursor:pointer;border:2px solid rgba(255,255,255,0.15)}
+input[type=color]{width:32px;height:22px;border:1px solid rgba(255,255,255,0.1);
+  border-radius:4px;background:transparent;cursor:pointer;padding:0}
+input[type=color]::-webkit-color-swatch-wrapper{padding:1px}
+input[type=color]::-webkit-color-swatch{border:none;border-radius:2px}
+.tint-row{display:flex;gap:8px;align-items:center}
+.tint-row input[type=range]{flex:1}
+select{width:100%;padding:5px 8px;border-radius:8px;border:1px solid rgba(255,255,255,0.08);
+  background:rgba(255,255,255,0.05);color:#ccc;font-size:11px;outline:none}
+select option{background:#2a2a2a}
+.sep{height:1px;background:rgba(255,255,255,0.05);margin:10px 0}
+#fps{position:fixed;bottom:14px;left:14px;padding:4px 10px;background:rgba(0,0,0,0.55);
+  border-radius:6px;color:#888;font-size:11px;font-family:monospace;z-index:10}
+#hint{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);padding:5px 14px;
+  background:rgba(0,0,0,0.5);border-radius:8px;color:#666;font-size:11px;z-index:10;
+  pointer-events:none;transition:opacity 1s}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="ctrl">
+  <div class="ph" id="panel-header">
+    <h3>Liquid Glass</h3>
+    <button id="toggle-btn" title="Collapse">&#8722;</button>
+  </div>
+  <div id="pb">
+    <div class="presets">
+      <button class="preset-btn" data-p="adwaita">&#x1fa9f; Adwaita</button>
+      <button class="preset-btn" data-p="frosted">&#x1f4a7; Frosted</button>
+      <button class="preset-btn" data-p="crystal">&#x1f48e; Crystal</button>
+      <button class="preset-btn" data-p="liquid">&#x1f30a; Liquid</button>
+      <button class="preset-btn" data-p="dark">&#x1f52e; Dark Glass</button>
+    </div>
+    <div class="cr"><label>IOR <span id="v-ior">1.45</span></label>
+      <input type="range" id="s-ior" min="1.0" max="2.5" step="0.01" value="1.45"></div>
+    <div class="cr"><label>Lens Width <span id="v-lw">400</span></label>
+      <input type="range" id="s-lw" min="100" max="800" step="1" value="400"></div>
+    <div class="cr"><label>Lens Height <span id="v-lh">300</span></label>
+      <input type="range" id="s-lh" min="50" max="600" step="1" value="300"></div>
+    <div class="cr"><label>Corner Radius <span id="v-cr">12</span></label>
+      <input type="range" id="s-cr" min="0" max="100" step="1" value="12"></div>
+    <div class="cr"><label>Chromatic Aberration <span id="v-ca">0.008</span></label>
+      <input type="range" id="s-ca" min="0" max="0.05" step="0.001" value="0.008"></div>
+    <div class="cr"><label>Distortion <span id="v-dist">0.80</span></label>
+      <input type="range" id="s-dist" min="0" max="2.0" step="0.01" value="0.80"></div>
+    <div class="cr"><label>Fresnel <span id="v-fr">0.25</span></label>
+      <input type="range" id="s-fr" min="0" max="1.0" step="0.01" value="0.25"></div>
+    <div class="cr"><label>Glass Tint</label>
+      <div class="tint-row">
+        <input type="color" id="s-tc" value="#ffffff">
+        <input type="range" id="s-ta" min="0" max="1.0" step="0.01" value="0.03">
+        <span id="v-ta" style="font-size:11px;color:#ccc;min-width:28px;text-align:right">0.03</span>
+      </div>
+    </div>
+    <div class="cr"><label>Blur Radius <span id="v-blur">2</span></label>
+      <input type="range" id="s-blur" min="0" max="20" step="0.5" value="2"></div>
+    <div class="sep"></div>
+    <div class="cr"><label>Background</label>
+      <select id="s-bg">
+        <option value="0">Desktop</option>
+        <option value="1">Geometric</option>
+        <option value="2">Dark</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<div id="fps">-- FPS</div>
+<div id="hint">Drag the glass panel &middot; Scroll over it to change corner radius &middot; Drag corners to resize</div>
+
+<script>
+(() => {
+'use strict';
+
+// ═══════════════════════════════════════
+// SHADERS
+// ═══════════════════════════════════════
+
+const VERT = `#version 300 es
+in vec2 a_pos;
+out vec2 v_uv;
+void main(){
+  v_uv = a_pos * 0.5 + 0.5;
+  gl_Position = vec4(a_pos, 0, 1);
+}`;
+
+const FRAG = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 o;
+
+uniform sampler2D u_bg;
+uniform vec2 u_res;
+uniform vec2 u_lc;   // lens center (GL pixels, origin bottom-left)
+uniform vec2 u_ls;   // lens size (pixels)
+uniform float u_ior;
+uniform float u_ca;
+uniform float u_dist;
+uniform float u_cr;  // corner radius
+uniform float u_fres;
+uniform vec4 u_tint;
+uniform float u_blur;
+uniform float u_time;
+uniform float u_wave;
+
+float sdf(vec2 p, vec2 h, float r){
+  r = min(r, min(h.x, h.y));
+  vec2 d = abs(p) - h + r;
+  return min(max(d.x, d.y), 0.0) + length(max(d, 0.0)) - r;
+}
+
+vec3 tap(vec2 uv, float blur){
+  vec2 tx = 1.0 / u_res;
+  uv = clamp(uv, tx, 1.0 - tx);
+  if(blur < 0.5) return texture(u_bg, uv).rgb;
+  vec3 s = vec3(0);
+  const int N = 22;
+  const float GA = 2.39996323;
+  for(int i = 0; i < N; i++){
+    float fi = float(i);
+    float r = sqrt((fi + 0.5) / float(N)) * blur;
+    float a = fi * GA;
+    vec2 off = vec2(cos(a), sin(a)) * r * tx;
+    s += texture(u_bg, clamp(uv + off, tx, 1.0 - tx)).rgb;
+  }
+  return s / float(N);
+}
+
+void main(){
+  vec2 px = v_uv * u_res;
+  vec2 p = px - u_lc;
+  vec2 hs = u_ls * 0.5;
+  float cr = min(u_cr, min(hs.x, hs.y));
+
+  float d = sdf(p, hs, cr);
+
+  // Outside lens — shadow only
+  if(d > 1.5){
+    vec3 bg = texture(u_bg, v_uv).rgb;
+    float sh = smoothstep(100.0, 0.0, d) * 0.22;
+    o = vec4(bg * (1.0 - sh), 1.0);
+    return;
+  }
+
+  // Edge anti-aliasing
+  float edge = 1.0 - smoothstep(-1.5, 0.5, d);
+
+  // ── CONVEX DOME (analytically smooth, no pyramid ridges) ──
+  //
+  // The glass surface is a smooth convex dome. We parametrize
+  // the height as a product of per-axis parabolas:
+  //   t(x,y) = (1 - (x/hw)²) · (1 - (y/hh)²)
+  // This is C∞ smooth everywhere (no medial-axis ridges from SDF),
+  // and for extreme aspect ratios (e.g. 800×46 headerbar) it
+  // naturally becomes a cylindrical lens profile.
+  //
+  // Then we apply the squircle curve on top:
+  //   height(t) = (1 - (1-t)⁴)^0.25
+  // to match Apple's Liquid Glass dome steepness (flat center,
+  // steep edges).
+
+  // Per-axis normalized coordinates: 0 at center, 1 at edge
+  vec2 q = min(abs(p) / hs, vec2(1.0));
+
+  // Smooth dome: 1 at center, 0 at any edge, no ridges
+  float ax = max(1.0 - q.x * q.x, 0.0);
+  float ay = max(1.0 - q.y * q.y, 0.0);
+  float t = ax * ay;
+
+  // Squircle convex height: h(t) = (1 - (1-t)^4)^0.25
+  float om = 1.0 - t;
+  float om4 = om * om * om * om;
+  float height = pow(max(1.0 - om4, 1e-6), 0.25);
+
+  // Derivative: h'(t) = (1-t)^3 / (1-(1-t)^4)^0.75
+  float hpD = pow(max(1.0 - om4, 1e-4), 0.75);
+  float hp = om * om * om / max(hpD, 0.08);
+
+  // Analytical gradient of t (chain rule on the product)
+  // dt/dx = d(ax)/dx · ay = -2·px/(hs.x²) · ay
+  // dt/dy = ax · d(ay)/dy = ax · -2·py/(hs.y²)
+  vec2 tGrad = vec2(
+    -2.0 * p.x / (hs.x * hs.x) * ay,
+    -2.0 * p.y / (hs.y * hs.y) * ax
+  );
+
+  // Height gradient: grad(h) = h'(t) · grad(t)
+  vec2 hGrad = hp * tGrad;
+
+  // 3D surface normal: N = normalize(-dh/dx, -dh/dy, 1)
+  // -hGrad points outward (convex dome tilts away from center)
+  float domeScale = 50.0;
+
+  // Wave perturbation (Liquid preset)
+  vec2 wp = vec2(0);
+  if(u_wave > 0.001){
+    float tt = u_time;
+    wp = u_wave * vec2(
+      sin(p.x * 0.014 + tt * 1.8) * cos(p.y * 0.021 + tt * 1.3),
+      cos(p.x * 0.017 + tt * 1.5) * sin(p.y * 0.012 + tt * 2.0)
+    ) * 0.12;
+  }
+
+  vec3 N = normalize(vec3((-hGrad + wp) * domeScale, 1.0));
+
+  // ── SNELL'S LAW REFRACTION (per channel for chromatic aberration) ──
+  vec3 I = vec3(0, 0, -1);
+  float scale = length(u_ls) * 0.1 * u_dist;
+
+  vec3 rR = refract(I, N, 1.0 / (u_ior + u_ca * 12.0));
+  vec3 rG = refract(I, N, 1.0 / u_ior);
+  vec3 rB = refract(I, N, 1.0 / max(u_ior - u_ca * 12.0, 1.001));
+
+  // Total internal reflection fallback
+  if(dot(rR, rR) < 0.001) rR = rG;
+  if(dot(rB, rB) < 0.001) rB = rG;
+  if(dot(rG, rG) < 0.001) rG = vec3(0, 0, -1);
+
+  vec2 uvR = v_uv + rR.xy * scale / u_res;
+  vec2 uvG = v_uv + rG.xy * scale / u_res;
+  vec2 uvB = v_uv + rB.xy * scale / u_res;
+
+  // Sample background with blur
+  float r = tap(uvR, u_blur).r;
+  float g = tap(uvG, u_blur).g;
+  float b = tap(uvB, u_blur).b;
+  vec3 col = vec3(r, g, b);
+
+  // ── FRESNEL (edge glow) ──
+  float fres = pow(1.0 - max(dot(N, vec3(0, 0, 1)), 0.0), 3.0) * u_fres;
+  col += fres * vec3(0.85, 0.9, 1.0);
+
+  // ── SPECULAR RIM LIGHT (top-left light source, Apple-style) ──
+  vec3 L = normalize(vec3(-0.4, 0.6, 1.0));
+  vec3 H = normalize(L + vec3(0, 0, 1));
+  float spec = pow(max(dot(N, H), 0.0), 80.0) * 0.45;
+  col += spec * vec3(1.0, 0.98, 0.95);
+
+  // ── GLASS TINT ──
+  col = mix(col, col * u_tint.rgb, u_tint.a);
+
+  // Subtle edge brightness
+  col += (1.0 - height) * 0.012;
+
+  // Composite with background + shadow
+  vec3 bg = texture(u_bg, v_uv).rgb;
+  float sh = smoothstep(100.0, 0.0, max(d, 0.0)) * 0.22;
+  o = vec4(mix(bg * (1.0 - sh), col, edge), 1.0);
+}`;
+
+// ═══════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════
+
+const S = {
+  ior: 1.45, ca: 0.008, dist: 0.80, cr: 12, fres: 0.25,
+  tintR: 1, tintG: 1, tintB: 1, tintA: 0.03,
+  blur: 2, bgMode: 0, wave: 0,
+  lx: 0, ly: 0, lw: 400, lh: 300 // lens rect in CSS px
+};
+
+const PRESETS = {
+  adwaita:  { ior:1.05, ca:0.003, dist:0.3,  cr:12, fres:0.15, tintR:1,   tintG:1,   tintB:1,   tintA:0.03, blur:1,  wave:0   },
+  frosted:  { ior:1.08, ca:0.004, dist:0.35, cr:18, fres:0.2,  tintR:0.94,tintG:0.96,tintB:1,   tintA:0.06, blur:14, wave:0   },
+  crystal:  { ior:1.85, ca:0.042, dist:1.6,  cr:6,  fres:0.55, tintR:1,   tintG:1,   tintB:1,   tintA:0.02, blur:0,  wave:0   },
+  liquid:   { ior:1.33, ca:0.012, dist:0.7,  cr:32, fres:0.3,  tintR:0.9, tintG:0.95,tintB:1,   tintA:0.04, blur:3,  wave:1.0 },
+  dark:     { ior:1.25, ca:0.008, dist:0.55, cr:12, fres:0.45, tintR:0.12,tintG:0.12,tintB:0.18,tintA:0.5,  blur:5,  wave:0   }
+};
+
+// ═══════════════════════════════════════
+// CANVAS & WEBGL
+// ═══════════════════════════════════════
+
+const canvas = document.getElementById('c');
+const gl = canvas.getContext('webgl2', { antialias: false, alpha: false, preserveDrawingBuffer: false });
+if (!gl) { document.body.innerHTML = '<p style="color:#fff;padding:40px;font-size:18px">WebGL2 not supported.</p>'; throw 'no webgl2'; }
+
+const bgCanvas = document.createElement('canvas');
+const bgCtx = bgCanvas.getContext('2d');
+
+let dpr = 1, cw = 1, ch = 1;
+
+function compile(type, src) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src);
+  gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+    console.error(gl.getShaderInfoLog(s)); return null;
+  }
+  return s;
+}
+
+const vs = compile(gl.VERTEX_SHADER, VERT);
+const fs = compile(gl.FRAGMENT_SHADER, FRAG);
+const prog = gl.createProgram();
+gl.attachShader(prog, vs); gl.attachShader(prog, fs);
+gl.bindAttribLocation(prog, 0, 'a_pos');
+gl.linkProgram(prog);
+if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) { console.error(gl.getProgramInfoLog(prog)); }
+gl.useProgram(prog);
+
+const U = {};
+['u_bg','u_res','u_lc','u_ls','u_ior','u_ca','u_dist','u_cr','u_fres','u_tint','u_blur','u_time','u_wave']
+  .forEach(n => U[n] = gl.getUniformLocation(prog, n));
+
+// Fullscreen quad
+const vao = gl.createVertexArray();
+gl.bindVertexArray(vao);
+const buf = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+gl.enableVertexAttribArray(0);
+gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+
+// Background texture
+const bgTex = gl.createTexture();
+gl.activeTexture(gl.TEXTURE0);
+gl.bindTexture(gl.TEXTURE_2D, bgTex);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+gl.uniform1i(U.u_bg, 0);
+
+// ═══════════════════════════════════════
+// BACKGROUND RENDERING (Canvas2D)
+// ═══════════════════════════════════════
+
+const ADW = {
+  wallpaper1: '#1a5fb4', wallpaper2: '#613583',
+  headerBg: '#e8e6e3', headerFg: '#2e3436',
+  windowBg: '#fafafa', sidebarBg: '#ebebeb',
+  cardBg: '#ffffff', accent: '#3584e4',
+  text: '#2e3436', textDim: '#929595',
+  darkHeaderBg: '#303030', darkWindowBg: '#242424',
+  darkSidebarBg: '#2a2a2a', darkText: '#ffffff',
+  darkTextDim: '#929595', termBg: '#1e1e1e', termGreen: '#33d17a'
+};
+
+function hash(n) { return ((Math.sin(n) * 43758.5453) % 1 + 1) % 1; }
+
+function rrect(ctx, x, y, w, h, r) {
+  r = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function drawTextLines(ctx, x, y, w, h, color, seed) {
+  const lh = 17;
+  const lines = Math.floor(h / lh);
+  for (let i = 0; i < lines; i++) {
+    const lw = w * (0.2 + 0.6 * hash(seed + i * 7.13));
+    const indent = hash(seed + i * 3.77) < 0.25 ? 24 : 0;
+    const gap = hash(seed + i * 11.3) < 0.12;
+    if (gap) continue;
+    ctx.fillStyle = color;
+    ctx.fillRect(x + indent, y + i * lh + 5, Math.min(lw, w - indent), 8);
+  }
+}
+
+function drawSidebarItems(ctx, x, y, w, h, items, fg) {
+  ctx.font = '12px system-ui, sans-serif';
+  ctx.fillStyle = fg;
+  items.forEach((item, i) => {
+    ctx.fillText(item, x + 14, y + 26 + i * 30);
+  });
+}
+
+function drawWindow(ctx, x, y, w, h, title, opts, time) {
+  const r = 12, hdrH = 46;
+  const dark = opts.dark || false;
+  const hdrBg = dark ? ADW.darkHeaderBg : ADW.headerBg;
+  const bodyBg = dark ? ADW.darkWindowBg : ADW.windowBg;
+  const sbarBg = dark ? ADW.darkSidebarBg : ADW.sidebarBg;
+  const textCol = dark ? 'rgba(255,255,255,0.13)' : 'rgba(0,0,0,0.09)';
+  const titleCol = dark ? ADW.darkText : ADW.headerFg;
+
+  // Floating animation
+  const ox = Math.sin(time * 0.4 + opts.phase) * 4;
+  const oy = Math.cos(time * 0.55 + opts.phase * 1.3) * 3;
+  x += ox; y += oy;
+
+  // Shadow
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.35)';
+  ctx.shadowBlur = 24;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 8;
+  rrect(ctx, x, y, w, h, r);
+  ctx.fillStyle = bodyBg;
+  ctx.fill();
+  ctx.restore();
+
+  // Body
+  rrect(ctx, x, y, w, h, r);
+  ctx.fillStyle = bodyBg;
+  ctx.fill();
+
+  // Header (clip to top rounded corners)
+  ctx.save();
+  rrect(ctx, x, y, w, h, r);
+  ctx.clip();
+  ctx.fillStyle = hdrBg;
+  ctx.fillRect(x, y, w, hdrH);
+  // Header bottom border
+  ctx.fillStyle = dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.08)';
+  ctx.fillRect(x, y + hdrH - 1, w, 1);
+
+  // Title
+  ctx.fillStyle = titleCol;
+  ctx.font = 'bold 13px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(title, x + w / 2, y + 28);
+  ctx.textAlign = 'left';
+
+  // Close button
+  ctx.beginPath();
+  ctx.arc(x + w - 22, y + hdrH / 2, 9, 0, Math.PI * 2);
+  ctx.fillStyle = dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
+  ctx.fill();
+
+  // Sidebar
+  if (opts.sidebar) {
+    const sw = opts.sidebarW || 180;
+    ctx.fillStyle = sbarBg;
+    ctx.fillRect(x, y + hdrH, sw, h - hdrH);
+    // Sidebar divider
+    ctx.fillStyle = dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)';
+    ctx.fillRect(x + sw, y + hdrH, 1, h - hdrH);
+    if (opts.sidebarItems) {
+      drawSidebarItems(ctx, x, y + hdrH, sw, h - hdrH, opts.sidebarItems,
+        dark ? ADW.darkTextDim : ADW.textDim);
+    }
+    // Content
+    drawTextLines(ctx, x + sw + 16, y + hdrH + 14, w - sw - 32, h - hdrH - 28, textCol, opts.seed || 0);
+  } else if (opts.terminal) {
+    // Terminal content
+    ctx.fillStyle = ADW.termBg;
+    ctx.fillRect(x, y + hdrH, w, h - hdrH);
+    const lines = [
+      { t: '$ neofetch', c: ADW.termGreen },
+      { t: '       .-/+oossssoo+/-.', c: '#8ff0a4' },
+      { t: '    `:+ssssssssssssssssss+:`', c: '#8ff0a4' },
+      { t: '  OS: Debian GNU/Linux 13 (trixie)', c: '#ffffffaa' },
+      { t: '  DE: GNOME 48.7', c: '#ffffffaa' },
+      { t: '  WM: Mutter (Wayland)', c: '#ffffffaa' },
+      { t: '  Shell: bash 5.2', c: '#ffffffaa' },
+      { t: '  Resolution: 1920x1080', c: '#ffffffaa' },
+      { t: '', c: '' },
+      { t: '$ _', c: ADW.termGreen }
+    ];
+    ctx.font = '12px monospace';
+    lines.forEach((l, i) => {
+      if (!l.t) return;
+      ctx.fillStyle = l.c;
+      ctx.fillText(l.t, x + 14, y + hdrH + 22 + i * 18);
+    });
+  } else {
+    drawTextLines(ctx, x + 16, y + hdrH + 14, w - 32, h - hdrH - 28, textCol, opts.seed || 0);
+  }
+
+  ctx.restore();
+}
+
+function renderDesktop(ctx, w, h, t) {
+  // Wallpaper gradient
+  const grad = ctx.createLinearGradient(0, 0, w * 0.6, h);
+  grad.addColorStop(0, ADW.wallpaper1);
+  grad.addColorStop(0.5, '#26367a');
+  grad.addColorStop(1, ADW.wallpaper2);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, w, h);
+
+  // Subtle noise pattern on wallpaper
+  ctx.fillStyle = 'rgba(0,0,0,0.05)';
+  for (let i = 0; i < 60; i++) {
+    const nx = hash(i * 1.23) * w;
+    const ny = hash(i * 4.56) * h;
+    const ns = 1 + hash(i * 7.89) * 3;
+    ctx.fillRect(nx, ny, ns, ns);
+  }
+
+  // Top bar
+  ctx.fillStyle = 'rgba(0,0,0,0.65)';
+  ctx.fillRect(0, 0, w, 30);
+  ctx.fillStyle = '#ffffffcc';
+  ctx.font = 'bold 12px system-ui, sans-serif';
+  ctx.fillText('Activities', 14, 20);
+  ctx.textAlign = 'center';
+  const d = new Date();
+  ctx.fillText(d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), w / 2, 20);
+  ctx.textAlign = 'right';
+  ctx.font = '12px system-ui, sans-serif';
+  ctx.fillText('⏻', w - 16, 20);
+  ctx.textAlign = 'left';
+
+  // Windows (back to front)
+  drawWindow(ctx, w * 0.52, h * 0.12, w * 0.28, h * 0.38, 'Settings', {
+    sidebar: true, sidebarW: 160, phase: 2.5, seed: 100,
+    sidebarItems: ['Wi-Fi', 'Bluetooth', 'Background', 'Appearance', 'Notifications', 'Sound']
+  }, t);
+
+  drawWindow(ctx, w * 0.06, h * 0.07, w * 0.3, h * 0.42, 'Files', {
+    sidebar: true, sidebarW: 150, phase: 0.8, seed: 42,
+    sidebarItems: ['Home', 'Documents', 'Downloads', 'Music', 'Pictures', 'Videos']
+  }, t);
+
+  drawWindow(ctx, w * 0.25, h * 0.22, w * 0.32, h * 0.44, 'Text Editor', {
+    phase: 1.7, seed: 77
+  }, t);
+
+  drawWindow(ctx, w * 0.12, h * 0.6, w * 0.4, h * 0.3, 'Terminal', {
+    terminal: true, phase: 3.2, dark: true
+  }, t);
+}
+
+function renderGeometric(ctx, w, h, t) {
+  // Dark gradient
+  const grad = ctx.createLinearGradient(0, 0, w, h);
+  grad.addColorStop(0, '#0a0a1a');
+  grad.addColorStop(1, '#1a0a20');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, w, h);
+
+  // Grid
+  ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x < w; x += 60) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+  }
+  for (let y = 0; y < h; y += 60) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+  }
+
+  // Animated shapes
+  for (let i = 0; i < 12; i++) {
+    const fi = i;
+    const cx = w * 0.5 + w * 0.3 * Math.cos(fi * 0.52 + t * 0.25);
+    const cy = h * 0.5 + h * 0.3 * Math.sin(fi * 0.73 + t * 0.18);
+    const sz = 30 + 60 * hash(fi * 3.3);
+    const hue = (fi * 37 + t * 15) % 360;
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(t * 0.3 * (hash(fi * 1.1) - 0.5));
+    ctx.globalAlpha = 0.35;
+
+    if (i % 3 === 0) {
+      // Circle
+      ctx.beginPath();
+      ctx.arc(0, 0, sz, 0, Math.PI * 2);
+      ctx.fillStyle = `hsl(${hue}, 70%, 55%)`;
+      ctx.fill();
+    } else if (i % 3 === 1) {
+      // Rectangle
+      ctx.fillStyle = `hsl(${hue}, 60%, 50%)`;
+      ctx.fillRect(-sz, -sz * 0.6, sz * 2, sz * 1.2);
+    } else {
+      // Triangle
+      ctx.beginPath();
+      ctx.moveTo(0, -sz);
+      ctx.lineTo(sz * 0.87, sz * 0.5);
+      ctx.lineTo(-sz * 0.87, sz * 0.5);
+      ctx.closePath();
+      ctx.fillStyle = `hsl(${hue}, 65%, 52%)`;
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+
+  // Some "text" blocks
+  ctx.fillStyle = 'rgba(255,255,255,0.07)';
+  for (let i = 0; i < 5; i++) {
+    const bx = w * hash(i * 5.5 + 0.1);
+    const by = h * hash(i * 5.5 + 0.7);
+    for (let j = 0; j < 4; j++) {
+      const lw = 40 + 80 * hash(i * 10 + j * 3);
+      ctx.fillRect(bx, by + j * 14, lw, 8);
+    }
+  }
+}
+
+function renderDark(ctx, w, h, t) {
+  // Dark wallpaper
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fillRect(0, 0, w, h);
+
+  // Subtle gradient overlay
+  const grad = ctx.createRadialGradient(w * 0.5, h * 0.4, 0, w * 0.5, h * 0.4, w * 0.7);
+  grad.addColorStop(0, 'rgba(53,132,228,0.06)');
+  grad.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, w, h);
+
+  // Top bar
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.fillRect(0, 0, w, 30);
+  ctx.fillStyle = '#ffffffaa';
+  ctx.font = 'bold 12px system-ui, sans-serif';
+  ctx.fillText('Activities', 14, 20);
+  ctx.textAlign = 'center';
+  const d = new Date();
+  ctx.fillText(d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), w / 2, 20);
+  ctx.textAlign = 'left';
+
+  // Dark windows
+  drawWindow(ctx, w * 0.08, h * 0.08, w * 0.32, h * 0.45, 'Files', {
+    dark: true, sidebar: true, sidebarW: 150, phase: 0.8, seed: 42,
+    sidebarItems: ['Home', 'Documents', 'Downloads', 'Music', 'Pictures', 'Videos']
+  }, t);
+
+  drawWindow(ctx, w * 0.3, h * 0.2, w * 0.35, h * 0.48, 'Text Editor', {
+    dark: true, phase: 1.7, seed: 77
+  }, t);
+
+  drawWindow(ctx, w * 0.55, h * 0.15, w * 0.3, h * 0.35, 'Settings', {
+    dark: true, sidebar: true, sidebarW: 150, phase: 2.5, seed: 100,
+    sidebarItems: ['Wi-Fi', 'Bluetooth', 'Background', 'Appearance', 'Notifications']
+  }, t);
+
+  drawWindow(ctx, w * 0.15, h * 0.58, w * 0.42, h * 0.3, 'Terminal', {
+    terminal: true, phase: 3.2, dark: true
+  }, t);
+}
+
+function renderBg(t) {
+  const w = cw, h = ch;
+  bgCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  bgCtx.clearRect(0, 0, w, h);
+
+  if (S.bgMode === 0) renderDesktop(bgCtx, w, h, t);
+  else if (S.bgMode === 1) renderGeometric(bgCtx, w, h, t);
+  else renderDark(bgCtx, w, h, t);
+}
+
+// ═══════════════════════════════════════
+// RESIZE
+// ═══════════════════════════════════════
+
+function resize() {
+  dpr = window.devicePixelRatio || 1;
+  cw = window.innerWidth;
+  ch = window.innerHeight;
+  canvas.width = cw * dpr;
+  canvas.height = ch * dpr;
+  bgCanvas.width = cw * dpr;
+  bgCanvas.height = ch * dpr;
+  gl.viewport(0, 0, canvas.width, canvas.height);
+}
+
+window.addEventListener('resize', () => {
+  resize();
+  // Re-center lens if it went off screen
+  S.lx = Math.min(S.lx, cw - S.lw);
+  S.ly = Math.min(S.ly, ch - S.lh);
+});
+
+// ═══════════════════════════════════════
+// INTERACTION
+// ═══════════════════════════════════════
+
+let drag = null; // { type: 'move'|'nw'|'ne'|'sw'|'se', ox, oy }
+
+function hitTest(mx, my) {
+  const m = 16; // corner hit margin
+  const l = S.lx, t = S.ly, r = l + S.lw, b = t + S.lh;
+  // Corners
+  if (mx >= l - m && mx <= l + m && my >= t - m && my <= t + m) return 'nw';
+  if (mx >= r - m && mx <= r + m && my >= t - m && my <= t + m) return 'ne';
+  if (mx >= l - m && mx <= l + m && my >= b - m && my <= b + m) return 'sw';
+  if (mx >= r - m && mx <= r + m && my >= b - m && my <= b + m) return 'se';
+  // Inside
+  if (mx >= l && mx <= r && my >= t && my <= b) return 'move';
+  return null;
+}
+
+function getCursor(ht) {
+  if (!ht) return 'default';
+  if (ht === 'move') return 'grab';
+  return ht + '-resize';
+}
+
+canvas.addEventListener('pointerdown', e => {
+  const ht = hitTest(e.clientX, e.clientY);
+  if (!ht) return;
+  e.preventDefault();
+  canvas.setPointerCapture(e.pointerId);
+  drag = { type: ht, sx: e.clientX, sy: e.clientY, olx: S.lx, oly: S.ly, olw: S.lw, olh: S.lh };
+  if (ht === 'move') canvas.style.cursor = 'grabbing';
+});
+
+canvas.addEventListener('pointermove', e => {
+  if (!drag) {
+    canvas.style.cursor = getCursor(hitTest(e.clientX, e.clientY));
+    return;
+  }
+  const dx = e.clientX - drag.sx, dy = e.clientY - drag.sy;
+  if (drag.type === 'move') {
+    S.lx = drag.olx + dx;
+    S.ly = drag.oly + dy;
+  } else {
+    let nx = drag.olx, ny = drag.oly, nw = drag.olw, nh = drag.olh;
+    if (drag.type.includes('w')) { nx = drag.olx + dx; nw = drag.olw - dx; }
+    if (drag.type.includes('e')) { nw = drag.olw + dx; }
+    if (drag.type.includes('n')) { ny = drag.oly + dy; nh = drag.olh - dy; }
+    if (drag.type.includes('s')) { nh = drag.olh + dy; }
+    if (nw >= 100 && nw <= 800) { S.lx = nx; S.lw = nw; syncSlider('lw', nw); }
+    if (nh >= 50 && nh <= 600) { S.ly = ny; S.lh = nh; syncSlider('lh', nh); }
+  }
+});
+
+canvas.addEventListener('pointerup', e => {
+  if (drag && drag.type === 'move') canvas.style.cursor = 'grab';
+  drag = null;
+});
+
+canvas.addEventListener('wheel', e => {
+  if (hitTest(e.clientX, e.clientY)) {
+    e.preventDefault();
+    S.cr = Math.max(0, Math.min(100, S.cr - e.deltaY * 0.15));
+    syncSlider('cr', S.cr);
+  }
+}, { passive: false });
+
+// ═══════════════════════════════════════
+// CONTROLS
+// ═══════════════════════════════════════
+
+const sliderMap = {
+  ior:  { el: 's-ior',  vl: 'v-ior',  key: 'ior',  fmt: v => v.toFixed(2) },
+  lw:   { el: 's-lw',   vl: 'v-lw',   key: 'lw',   fmt: v => Math.round(v) },
+  lh:   { el: 's-lh',   vl: 'v-lh',   key: 'lh',   fmt: v => Math.round(v) },
+  cr:   { el: 's-cr',   vl: 'v-cr',   key: 'cr',   fmt: v => Math.round(v) },
+  ca:   { el: 's-ca',   vl: 'v-ca',   key: 'ca',   fmt: v => v.toFixed(3) },
+  dist: { el: 's-dist', vl: 'v-dist', key: 'dist', fmt: v => v.toFixed(2) },
+  fr:   { el: 's-fr',   vl: 'v-fr',   key: 'fres', fmt: v => v.toFixed(2) },
+  blur: { el: 's-blur', vl: 'v-blur', key: 'blur', fmt: v => v.toFixed(1) },
+};
+
+function syncSlider(name, val) {
+  const m = sliderMap[name];
+  if (!m) return;
+  document.getElementById(m.el).value = val;
+  document.getElementById(m.vl).textContent = m.fmt(val);
+}
+
+function syncAll() {
+  for (const [name, m] of Object.entries(sliderMap)) {
+    document.getElementById(m.el).value = S[m.key];
+    document.getElementById(m.vl).textContent = m.fmt(S[m.key]);
+  }
+  // Tint
+  const hex = '#' + [S.tintR, S.tintG, S.tintB].map(c =>
+    Math.round(c * 255).toString(16).padStart(2, '0')).join('');
+  document.getElementById('s-tc').value = hex;
+  document.getElementById('s-ta').value = S.tintA;
+  document.getElementById('v-ta').textContent = S.tintA.toFixed(2);
+  // Background
+  document.getElementById('s-bg').value = S.bgMode;
+}
+
+// Bind sliders
+for (const [name, m] of Object.entries(sliderMap)) {
+  const el = document.getElementById(m.el);
+  el.addEventListener('input', () => {
+    S[m.key] = parseFloat(el.value);
+    document.getElementById(m.vl).textContent = m.fmt(S[m.key]);
+    // If lens size changed, update actual size
+    if (m.key === 'lw') { S.lw = S.lw; } // just triggers display update
+    if (m.key === 'lh') { S.lh = S.lh; }
+    clearActivePreset();
+  });
+}
+
+// Tint color
+document.getElementById('s-tc').addEventListener('input', e => {
+  const hex = e.target.value;
+  S.tintR = parseInt(hex.slice(1, 3), 16) / 255;
+  S.tintG = parseInt(hex.slice(3, 5), 16) / 255;
+  S.tintB = parseInt(hex.slice(5, 7), 16) / 255;
+  clearActivePreset();
+});
+document.getElementById('s-ta').addEventListener('input', e => {
+  S.tintA = parseFloat(e.target.value);
+  document.getElementById('v-ta').textContent = S.tintA.toFixed(2);
+  clearActivePreset();
+});
+
+// Background select
+document.getElementById('s-bg').addEventListener('change', e => {
+  S.bgMode = parseInt(e.target.value);
+});
+
+// Collapse toggle
+const pb = document.getElementById('pb');
+const toggleBtn = document.getElementById('toggle-btn');
+document.getElementById('panel-header').addEventListener('click', () => {
+  pb.classList.toggle('collapsed');
+  toggleBtn.innerHTML = pb.classList.contains('collapsed') ? '&#43;' : '&#8722;';
+});
+
+// Presets
+function clearActivePreset() {
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+}
+
+function applyPreset(name) {
+  const p = PRESETS[name];
+  if (!p) return;
+  Object.assign(S, p);
+  syncAll();
+  clearActivePreset();
+  const btn = document.querySelector(`[data-p="${name}"]`);
+  if (btn) btn.classList.add('active');
+}
+
+document.querySelectorAll('.preset-btn').forEach(btn => {
+  btn.addEventListener('click', () => applyPreset(btn.dataset.p));
+});
+
+// ═══════════════════════════════════════
+// FPS
+// ═══════════════════════════════════════
+
+let fpsFrames = 0, fpsLast = 0;
+const fpsEl = document.getElementById('fps');
+
+// ═══════════════════════════════════════
+// MAIN LOOP
+// ═══════════════════════════════════════
+
+function frame(now) {
+  const t = now * 0.001;
+
+  // FPS
+  fpsFrames++;
+  if (now - fpsLast >= 1000) {
+    fpsEl.textContent = fpsFrames + ' FPS';
+    fpsFrames = 0;
+    fpsLast = now;
+  }
+
+  // Render background
+  renderBg(t);
+
+  // Upload background texture
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, bgTex);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, bgCanvas);
+
+  // Set uniforms
+  gl.uniform2f(U.u_res, canvas.width, canvas.height);
+  gl.uniform2f(U.u_lc,
+    (S.lx + S.lw * 0.5) * dpr,
+    canvas.height - (S.ly + S.lh * 0.5) * dpr
+  );
+  gl.uniform2f(U.u_ls, S.lw * dpr, S.lh * dpr);
+  gl.uniform1f(U.u_ior, S.ior);
+  gl.uniform1f(U.u_ca, S.ca);
+  gl.uniform1f(U.u_dist, S.dist);
+  gl.uniform1f(U.u_cr, S.cr * dpr);
+  gl.uniform1f(U.u_fres, S.fres);
+  gl.uniform4f(U.u_tint, S.tintR, S.tintG, S.tintB, S.tintA);
+  gl.uniform1f(U.u_blur, S.blur);
+  gl.uniform1f(U.u_time, t);
+  gl.uniform1f(U.u_wave, S.wave);
+
+  // Draw
+  gl.bindVertexArray(vao);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+  requestAnimationFrame(frame);
+}
+
+// ═══════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════
+
+resize();
+S.lx = Math.round((cw - S.lw) / 2);
+S.ly = Math.round((ch - S.lh) / 2);
+syncAll();
+
+// Fade out hint
+setTimeout(() => {
+  const hint = document.getElementById('hint');
+  if (hint) { hint.style.opacity = '0'; setTimeout(() => hint.remove(), 1200); }
+}, 5000);
+
+requestAnimationFrame(frame);
+
+})();
+</script>
+</body>
+</html>
