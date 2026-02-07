@@ -1,0 +1,8 @@
+{
+  "uuid": "gnome-liquide@logo000",
+  "name": "Gnome Liquide",
+  "description": "Liquid Glass refraction effect for GNOME Shell",
+  "version": 1,
+  "shell-version": ["48"],
+  "settings-schema": "org.gnome.shell.extensions.gnome-liquide"
+}

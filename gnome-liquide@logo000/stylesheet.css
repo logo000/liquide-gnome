@@ -1,0 +1,10 @@
+/* Make the top panel background transparent so the refracted
+   background actor underneath is visible. */
+#panel.liquid-glass-panel {
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+#panel.liquid-glass-panel .panel-corner {
+  -panel-corner-background-color: transparent !important;
+}

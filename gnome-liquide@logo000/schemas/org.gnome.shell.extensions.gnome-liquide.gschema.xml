@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.gnome-liquide"
+          path="/org/gnome/shell/extensions/gnome-liquide/">
+
+    <key name="ior" type="d">
+      <default>1.45</default>
+      <summary>Index of Refraction</summary>
+      <description>Snell's law IOR for the glass dome (1.0 = no refraction, 2.0 = heavy)</description>
+      <range min="1.0" max="2.0"/>
+    </key>
+
+    <key name="chromatic-aberration" type="d">
+      <default>0.008</default>
+      <summary>Chromatic Aberration</summary>
+      <description>Per-channel IOR offset producing color fringing at edges</description>
+      <range min="0.0" max="0.05"/>
+    </key>
+
+    <key name="distortion" type="d">
+      <default>0.8</default>
+      <summary>Distortion Scale</summary>
+      <description>Overall displacement magnitude for refracted rays</description>
+      <range min="0.0" max="3.0"/>
+    </key>
+
+    <key name="corner-radius" type="d">
+      <default>12.0</default>
+      <summary>Corner Radius</summary>
+      <description>Rounded-rect corner radius of the glass shape (pixels)</description>
+      <range min="0.0" max="100.0"/>
+    </key>
+
+    <key name="fresnel" type="d">
+      <default>0.25</default>
+      <summary>Fresnel Edge Glow</summary>
+      <description>Strength of the bright rim caused by Fresnel reflection</description>
+      <range min="0.0" max="1.0"/>
+    </key>
+
+    <key name="blur" type="d">
+      <default>2.0</default>
+      <summary>Background Blur</summary>
+      <description>Gaussian blur radius applied to the refracted background</description>
+      <range min="0.0" max="10.0"/>
+    </key>
+
+    <key name="tint-color" type="s">
+      <default>'#ffffffcc'</default>
+      <summary>Glass Tint Color</summary>
+      <description>RGBA hex color for the glass tint overlay</description>
+    </key>
+
+    <key name="apply-to-panel" type="b">
+      <default>true</default>
+      <summary>Apply to Panel</summary>
+      <description>Whether to apply the liquid glass effect to the top panel</description>
+    </key>
+
+  </schema>
+</schemalist>
